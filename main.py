@@ -9,7 +9,7 @@ app = Ursina()
 window.color = add_hsv(color.white, (0, -.2, -.4))
 globe = Entity(model="sphere", color=add_hsv(color.dark_gray, (0, 0, -.1)), scale=4, name="globe")
 gui = None
-country = None
+hovered_country = None
 
 draw_globe_line(globe=globe, rho=0.5, color=color.cyan, alpha=.6, size=0.004, num_markers=100, theta=math.pi/2)
 Entity(model="sphere", color=color.cyan, alpha=.7, scale=0.008, position=Vec3(0, 0.5, 0), parent=globe)
@@ -34,7 +34,7 @@ camera.position = Vec3(spherical_to_cartesian(camera_distance, camera_phi, camer
 camera.look_at(globe.position)
 
 def update() -> None:
-    global mouse_position, camera_phi, camera_theta, gui, country
+    global mouse_position, camera_phi, camera_theta, gui, hovered_country
     if left_mouse_pressed:
         mouse_delta = mouse.position - mouse_position
         mouse_position = mouse.position
@@ -45,12 +45,14 @@ def update() -> None:
     camera.rotation_z = 0
     camera.look_at(globe.position)
 
-    if country and country.name in countries:
-        country.alpha = .4
-    country = mouse.hovered_entity
-    if country and country.name in countries:
-        gui = display_country_info(gui, country.name)
-        country.alpha = 1
+    if hovered_country and hovered_country.name in countries:
+        hovered_country.alpha = .6
+        hovered_country.scale = .02
+    hovered_country = mouse.hovered_entity
+    if hovered_country and hovered_country.name in countries:
+        gui = display_country_info(gui, hovered_country.name)
+        hovered_country.alpha = 1.
+        hovered_country.scale = .03
     else:
         if gui is not None:
             gui.disable()
@@ -59,5 +61,11 @@ def update() -> None:
 draw_boundaries(globe, radius=0.501, col=color.turquoise)
 draw_centroids(globe, radius=0.501, col=add_hsv(color.red, (0, 0, -.1)), alpha=.4, size=.02)
 get_gdp_data()
+gdp_max = gdps["United States"][40]
+for name, country in countries.items():
+    gdp = gdps[name][40]
+    col = add_hsv(color.red, (gdp/(gdp_max)*360, 0, 0))
+    country.color = col
+    country.alpha = .6
 
 app.run()

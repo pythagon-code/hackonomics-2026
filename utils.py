@@ -199,5 +199,29 @@ def get_gdp_data() -> None:
             except KeyError:
                 print(f"Error parsing row: {row}")
 
-    print(set(gdps.keys()).difference(set(countries.keys())))
-    print(set(countries.keys()).difference(set(gdps.keys())))
+        assert "Russia" not in gdps
+        gdps["Russia"] = gdps["Russian Federation"]
+        assert "Iran" not in gdps
+        gdps["Iran"] = gdps["Iran, Islamic Rep."]
+        assert "South Korea" not in gdps
+        gdps["South Korea"] = gdps["Korea, Rep."]
+        assert "North Korea" not in gdps
+        gdps["North Korea"] = gdps["Korea, Dem. People's Rep."]
+        assert "Myanmar [Burma]" not in gdps
+        gdps["Myanmar"] = gdps["Myanmar"]
+        assert "Vietnam" not in gdps
+        gdps["Vietnam"] = gdps["Viet Nam"]
+        assert "Venezuela" not in gdps
+        gdps["Venezuela"] = gdps["Venezuela, RB"]
+        assert "Yemen" not in gdps
+        gdps["Yemen"] = gdps["Yemen, Rep."]
+        assert "Congo [DRC]" not in gdps
+        gdps["Congo [DRC]"] = gdps["Congo, Dem. Rep."]
+        assert "Egypt" not in gdps
+        gdps["Egypt"] = gdps["Egypt, Arab Rep."]
+        for key in set(gdps.keys()) - set(countries.keys()):
+            gdps.pop(key)
+        for key in set(countries.keys()) - set(gdps.keys()):
+            destroy(countries[key])
+            countries.pop(key)
+        assert len(gdps) == len(countries)
