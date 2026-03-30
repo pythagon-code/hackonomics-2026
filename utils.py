@@ -8,6 +8,7 @@ import zipfile
 import urllib.request
 import json
 import csv
+from scipy.cluster.hierarchy import fcluster, linkage
 
 running = {}
 
@@ -237,6 +238,49 @@ def compute_group_similarity(selected_names: list[str], start_index: int = 0, en
         country_growth = normalize_series(compute_growth_series(series, start_index, end_index, log_scale))
         scores[name] = correlation(reference, country_growth)
     return scores
+
+def cluster_similarity_scores(scores: dict[str, float], num_clusters: int = 4) -> dict[int, list[tuple[str, float]]]:
+    if not scores:
+        return {}
+    items = sorted(scores.items(), key=lambda item: item[0])
+    if len(items) == 1:
+        name, score = items[0]
+        return {1: [(name, score)]}
+    values = [[score] for _, score in items]
+    clusters = min(num_clusters, len(items))
+    linkage_matrix = linkage(values, method="ward")
+    labels = fcluster(linkage_matrix, t=clusters, criterion="maxclust")
+    grouped = {}
+    for idx, label in enumerate(labels):
+        if label not in grouped:
+            grouped[label] = []
+        grouped[label].append(items[idx])
+    for label in grouped:
+        grouped[label] = sorted(grouped[label], key=lambda item: item[1], reverse=True)
+    return grouped
+
+def cluster_countries_by_growth(start_index: int = 0, end_index: int | None = None, log_scale: bool = True, num_clusters: int = 4) -> dict[str, int]:
+    growth_by_country = {}
+    for name, series in gdps.items():
+        growth = normalize_series(compute_growth_series(series, start_index, end_index, log_scale))
+        if growth:
+            growth_by_country[name] = growth
+    if not growth_by_country:
+        return {}
+    min_size = min(len(values) for values in growth_by_country.values())
+    if min_size <= 0:
+        return {}
+    names = sorted(growth_by_country.keys())
+    rows = [growth_by_country[name][:min_size] for name in names]
+    if len(rows) == 1:
+        return {names[0]: 1}
+    clusters = min(num_clusters, len(rows))
+    linkage_matrix = linkage(rows, method="ward")
+    labels = fcluster(linkage_matrix, t=clusters, criterion="maxclust")
+    assignments = {}
+    for idx, label in enumerate(labels):
+        assignments[names[idx]] = int(label)
+    return assignments
 
 def get_gdp_data() -> None:
     gdp_data_url = "https://api.worldbank.org/v2/en/indicator/NY.GDP.MKTP.CD?downloadformat=csv"
