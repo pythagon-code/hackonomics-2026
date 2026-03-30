@@ -82,13 +82,6 @@ def download_and_extract(url: str, base_dir: str = "data") -> str:
     os.remove(zip_path)
     return folder_path
 
-def load_geojson(file_path: str) -> None:
-    with open(file_path, "r") as f:
-        geojson = json.load(f)
-    import json
-import math
-from ursina import *
-
 def draw_boundaries(globe: Entity, radius: float, col: Color, step: int = 1) -> None:
     boundaries_url = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson"
     boundaries_path = download(boundaries_url, "data")
@@ -161,7 +154,7 @@ def display_country_info(gui: Entity | None, country: str) -> Entity:
             parent=camera.ui,
             model="quad",
             color=color.black,
-            alpha=0.5,
+            alpha=.5,
             scale=Vec2(0.5, 0.5),
             position=Vec2(-0.6, 0.2),
             name="country_info",
