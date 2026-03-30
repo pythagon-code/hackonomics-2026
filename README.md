@@ -36,7 +36,8 @@ cd eco-sphere
 python -m venv .venv
 ```
 
-### 3. Activate the virtual environment (Windows PowerShell)
+### 3. Activate the virtual environment
+On Windows Powershell
 ```
 .venv\Scripts\activate.ps1
 ```
