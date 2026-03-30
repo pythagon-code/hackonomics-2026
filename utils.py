@@ -31,6 +31,7 @@ def draw_globe_line(
     globe: Entity, 
     rho: float, 
     color: Color,
+    alpha: float,
     size: float,
     num_markers: int,
     phi: float | None = None,
@@ -45,7 +46,7 @@ def draw_globe_line(
         else:
             theta = angle
         x, y, z = spherical_to_cartesian(rho, phi, theta)
-        Entity(model="sphere", color=color, scale=size, position=(x, y, z), parent=globe)
+        Entity(model="sphere", color=color, alpha=alpha, scale=size, position=(x, y, z), parent=globe)
 
 def clamp(value: float, min_value: float, max_value: float) -> float:
     return max(min_value, min(value, max_value))
@@ -63,7 +64,11 @@ def download(url: str, base_dir: str = "data") -> str:
     return file_path
 
 def download_and_extract(url: str, base_dir: str = "data") -> str:
-    filename = url.split("/")[-1]
+    filename = url.split("/")[-1].removesuffix("?downloadformat=csv").removesuffix(".zip")
+    if os.path.exists(os.path.join(base_dir, filename)):
+        return os.path.join(base_dir, filename)
+    if not filename.endswith(".zip"):
+        filename += ".zip"
     folder_name = re.sub(r"\.zip$", "", filename)
     folder_path = os.path.join(base_dir, folder_name)
     zip_path = os.path.join(base_dir, filename)
@@ -85,7 +90,7 @@ import math
 from ursina import *
 
 def draw_boundaries(globe: Entity, radius: float, col: Color, step: int = 1) -> None:
-    boundaries_url = "http://raw.githubusercontent.com/nvkelso/natural-earth-vector/refs/heads/master/geojson/ne_110m_admin_0_countries.geojson"
+    boundaries_url = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson"
     boundaries_path = download(boundaries_url, "data")
     with open(boundaries_path, "rb") as f:
         geojson = json.load(f)
@@ -117,10 +122,11 @@ def draw_boundaries(globe: Entity, radius: float, col: Color, step: int = 1) -> 
                     model=Mesh(vertices=vertices, mode='line', static=True),
                     color=col,
                     parent=globe,
-                    thickness=1
+                    thickness=1,
+                    name="boundary"
                 )
 
-def draw_centroids(globe: Entity, radius: float, col: Color, size: float) -> None:
+def draw_centroids(globe: Entity, radius: float, col: Color, alpha: float, size: float) -> None:
     centroids_url = "https://raw.githubusercontent.com/google/dspl/master/samples/google/canonical/countries.csv"
     centroids_path = download(centroids_url, "data")
     with open(centroids_path, "r", encoding="utf-8") as f:
@@ -131,20 +137,67 @@ def draw_centroids(globe: Entity, radius: float, col: Color, size: float) -> Non
                 lon = float(row["longitude"])
                 country = row["name"]
 
-                countries[country] = 1
-
                 phi = math.radians(lon)
                 theta = math.radians(90 - lat)
 
                 x, y, z = spherical_to_cartesian(radius, phi, theta)
 
-                Entity(
+                countries[country] = Entity(
                     model="sphere",
                     color=col,
                     scale=size,
+                    alpha=alpha,
                     position=(x, y, z),
                     parent=globe,
-                    name=country
+                    collider="sphere",
+                    name=country,
                 )
-            except:
+            except Exception:
                 print(f"Error parsing row: {row}")
+
+def display_country_info(gui: Entity | None, country: str) -> Entity:
+    if gui is None:
+        gui = Entity(
+            parent=camera.ui,
+            model="quad",
+            color=color.black,
+            alpha=0.5,
+            scale=Vec2(0.5, 0.5),
+            position=Vec2(-0.6, 0.2),
+            name="country_info",
+        )
+        gui.text = Text(parent=gui, text=country, color=color.white, scale=5, origin=Vec2(0, 0), position=Vec2(0, 0.1))
+    else:
+        gui.enable()
+        gui.text.text = country
+    return gui
+
+def add_hsv(col: Color, hsv: tuple[float, float, float]) -> Color:
+    h, s, v = col.h_getter(), col.s_getter(), col.v_getter()
+    return color.hsv(
+        h + hsv[0],
+        s + hsv[1],
+        v + hsv[2],
+    )
+
+def get_gdp_data() -> None:
+    gdp_data_url = "https://api.worldbank.org/v2/en/indicator/NY.GDP.MKTP.CD?downloadformat=csv"
+    gdp_data = download_and_extract(gdp_data_url, "data")
+    with open(os.path.join(gdp_data, "API_NY.GDP.MKTP.CD_DS2_en_csv_v2_133326.csv"), "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            try:
+                gdp = []
+                for i in range(1, len(row[None])):
+                    value = row[None][i]
+                    if value == "":
+                        value = gdp[-1] if gdp else .0
+                    else:
+                        value = float(value)
+                    gdp.append(value)
+                gdps[row["\ufeff\"Data Source\""]] = gdp
+            except KeyError:
+                print(f"Error parsing row: {row}")
+
+    print(set(gdps.keys()).difference(set(countries.keys())))
+    print(set(countries.keys()).difference(set(gdps.keys())))
