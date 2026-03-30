@@ -20,13 +20,13 @@ selected_country = None
 unselected_country = None
 
 draw_globe_line(globe=globe, rho=0.5, color=color.white, alpha=.6, size=0.004, num_markers=100, theta=math.pi/2)
-Entity(model="sphere", color=color.white, scale=0.008, position=Vec3(0, 0.5, 0), parent=globe)
-Entity(model="sphere", color=color.white, scale=0.008, position=Vec3(0, -0.5, 0), parent=globe)
+Entity(model="sphere", color=color.white, scale=.008, position=Vec3(0, 0.5, 0), parent=globe)
+Entity(model="sphere", color=color.white, scale=.008, position=Vec3(0, -0.5, 0), parent=globe)
 left_mouse_pressed = False
 mouse_position = Vec3(0, 0)
 camera.parent = globe
 
-def unselect_all() -> None:
+def deselect_all() -> None:
     global selected_countries, selected_country, unselected_country
     for country in selected_countries:
         country.alpha = .8
@@ -44,14 +44,14 @@ cluster_button_hover_color = color.dark_gray
 use_log_scale = True
 
 unselect_all_button = Button(
-    text="Unselect All",
+    text="Deselect All",
     scale=Vec2(.2, .07),
-    position=Vec2(-.7, -0.35),
+    position=Vec2(.50, -0.42),
     color=unselect_all_button_base_color,
     highlight_color=unselect_all_button_hover_color,
     text_color=color.white,
     alpha=.5,
-    on_click=unselect_all,
+    on_click=deselect_all,
 )
 
 def toggle_log_scale() -> None:
@@ -87,7 +87,7 @@ def toggle_log_scale() -> None:
 log_scale_button = Button(
     text="Log Scale: On",
     scale=Vec2(.2, .07),
-    position=Vec2(-.7, -0.45),
+    position=Vec2(.72, -0.42),
     color=log_scale_button_base_color,
     highlight_color=log_scale_button_hover_color,
     text_color=color.white,
@@ -158,28 +158,34 @@ def apply_cluster_colors() -> None:
         country.scale = .03
 
 def toggle_clustering() -> None:
-    global cluster_assignments, cluster_mode_enabled
+    global cluster_assignments, cluster_mode_enabled, use_log_scale
     if cluster_mode_enabled:
         cluster_mode_enabled = False
         cluster_assignments = {}
         cluster_button.text = "Cluster"
         cluster_count_slider.disable()
         cluster_count_slider_label.disable()
+        log_scale_button.enable()
         if selected_countries:
             apply_similarity_colors()
         else:
             apply_year_colors(int(year_slider.value) - year_base, log_scale=use_log_scale)
         return
+    use_log_scale = False
+    log_scale_button.text = "Log Scale: Off"
     cluster_mode_enabled = True
     cluster_button.text = "Stop Cluster"
+    deselect_all()
     cluster_count_slider.enable()
     cluster_count_slider_label.enable()
+    log_scale_button.disable()
     cluster_assignments = compute_cluster_assignments(int(cluster_count_slider.value))
     if not cluster_assignments:
         cluster_mode_enabled = False
         cluster_button.text = "Cluster"
         cluster_count_slider.disable()
         cluster_count_slider_label.disable()
+        log_scale_button.enable()
         print("Unable to compute clusters for current year range.")
         return
     apply_cluster_colors()
@@ -187,7 +193,7 @@ def toggle_clustering() -> None:
 cluster_button = Button(
     text="Cluster",
     scale=Vec2(.2, .07),
-    position=Vec2(-.7, -0.25),
+    position=Vec2(.28, -0.42),
     color=cluster_button_base_color,
     highlight_color=cluster_button_hover_color,
     text_color=color.white,
@@ -203,7 +209,7 @@ cluster_count_slider = Slider(
     step=1,
     origin=Vec2(.5, .5),
     text_color=color.white,
-    position=(-.82, -.03),
+    position=(-.82, -.26),
 )
 cluster_count_slider.disable()
 cluster_count_slider_label = Text(
@@ -212,7 +218,7 @@ cluster_count_slider_label = Text(
     color=color.white,
     scale=1.5,
     origin=Vec2(.5, .5),
-    position=Vec2(-.53, .05),
+    position=Vec2(-.48, -.18),
 )
 cluster_count_slider_label.disable()
 
@@ -224,7 +230,7 @@ year_slider = Slider(
     step=1,
     origin=Vec2(.5, .5),
     text_color=color.white,
-    position=(-.82, -.13),
+    position=(-.82, -.36),
 )
 year_slider_label = Text(
     parent=camera.ui,
@@ -232,7 +238,7 @@ year_slider_label = Text(
     color=color.white,
     scale=1.5,
     origin=Vec2(.5, .5),
-    position=Vec2(-.53, -.05),
+    position=Vec2(-.53, -.28),
 )
 end_year_slider = Slider(
     parent=camera.ui,
@@ -242,7 +248,7 @@ end_year_slider = Slider(
     step=1,
     origin=Vec2(.5, .5),
     text_color=color.white,
-    position=(-.82, -.23),
+    position=(-.82, -.46),
     enabled=False,
 )
 end_year_slider_label = Text(
@@ -251,7 +257,7 @@ end_year_slider_label = Text(
     color=color.white,
     scale=1.5,
     origin=Vec2(.5, .5),
-    position=Vec2(-.53, -.15),
+    position=Vec2(-.53, -.38),
 )
 end_year_slider_label.disable()
 
@@ -261,7 +267,7 @@ legend_panel = Entity(
     color = color.black,
     alpha = .45,
     scale = Vec2(.40, .40),
-    position = Vec2(.62, -.22),
+    position = Vec2(.62, -.08),
 )
 legend_title = Text(
     parent = legend_panel,
@@ -410,13 +416,20 @@ def apply_similarity_colors() -> None:
         country.scale = .03
 
 def input(key: str) -> None:
-    global left_mouse_pressed, mouse_position, camera_distance, selected_country, unselected_country
+    global cluster_assignments, cluster_mode_enabled, left_mouse_pressed, mouse_position, camera_distance, selected_country, unselected_country
     if key == "right mouse down":
         mouse_position = mouse.position
         left_mouse_pressed = True
     elif key == "left mouse down":
         mouse_hovered_entity = mouse.hovered_entity
         if mouse_hovered_entity and mouse_hovered_entity.name in countries:
+            if cluster_mode_enabled:
+                cluster_mode_enabled = False
+                cluster_assignments = {}
+                cluster_button.text = "Cluster"
+                cluster_count_slider.disable()
+                cluster_count_slider_label.disable()
+                log_scale_button.enable()
             if mouse_hovered_entity in selected_countries:
                 unselected_country = mouse_hovered_entity
                 selected_countries.remove(unselected_country)
@@ -530,14 +543,24 @@ def update() -> None:
 
     if not selected_countries:
         unselect_all_button.disable()
-        end_year_slider.disable()
-        end_year_slider_label.disable()
+        if cluster_mode_enabled:
+            end_year_slider.enable()
+            end_year_slider_label.enable()
+        else:
+            end_year_slider.disable()
+            end_year_slider_label.disable()
         cluster_button.alpha = .5
+        if not cluster_mode_enabled:
+            year_slider_label.text = "Year"
     else:
         unselect_all_button.enable()
         end_year_slider.enable()
         end_year_slider_label.enable()
         cluster_button.alpha = 1.
+        year_slider_label.text = "Start Year"
+
+    if cluster_mode_enabled:
+        year_slider_label.text = "Start Year"
 
     if unselect_all_button.hovered:
         unselect_all_button.color = unselect_all_button_hover_color
@@ -554,7 +577,12 @@ def update() -> None:
 
     year_index = start_year_index
     if year_index != current_year_index:
-        if selected_countries:
+        if cluster_mode_enabled:
+            current_year_index = year_index
+            cluster_assignments = compute_cluster_assignments(int(cluster_count_slider.value))
+            apply_cluster_colors()
+            hovered_country_info_text = None
+        elif selected_countries:
             current_year_index = year_index
             hovered_country_info_text = None
         else:
